@@ -45,7 +45,7 @@ end
 % x_initial(16,1) = 0;%multirotor attitude
 % x_initial(17,1) = 0;
 % x_initial(18,1) = 0;
-x_final(1,1) = 4;
+x_final(1,1) = 3;
 x_final(2,1) = 0;
 x_final(3,1) = 0;
 x_waypoint(1,1) = 2;

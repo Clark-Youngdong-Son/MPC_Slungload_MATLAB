@@ -5,12 +5,23 @@ parameters;
 %% Simulation
 for i=1:initialNumber
     cvx_begin
-        variable u(3*N+1)
-        minimize(1/2*u(1:3*N)'*u(1:3*N))
+        variable u(3*N)
+%         f = 0;
+%         for j=1:N
+%             f = f + exp(-norm(A))
+%         end
+%         minimize(1/2*u(1:3*N)'*u(1:3*N) + exp(-norm(A*x_initial + B*u(1:3))))
+        minimize( 1/2*u(1:3*N)'*u(1:3*N) )
         
         subject to
         A_eq1*u(1:3*N) == b_eq1 %Final
 
+            j = N/3;
+            fullState = A_o(18*(j-1)+1:18*j,:)*u(1:3*N)+B_o(18*(j-1)+1:18*j,:)*x_initial;
+            min(fullState(1:2)-x_obstacle(1:2)) >= 1.5
+%         k = N/2;
+%         fullState = A_o(18*(k-1)+1:18*k,:)*u(1:3*N)+B_o(18*(k-1)+1:18*k,:)*x_initial
+%         exp(-min(fullState(1:2)-x_obstacle(1:2))) <= 0.2
 %         k=2.5*N/5;
 %         fullState = A_o(18*(k-1)+1:18*k,:)*u(1:3*N)+B_o(18*(k-1)+1:18*k,:)*x_initial
 %         norm(fullState(1:3) - x_waypoint(1:3)) -d_1 <= 0
@@ -71,6 +82,7 @@ title('Control input');
 figure(5)
 plot3(x_trajec_optimal(1,:), x_trajec_optimal(2,:), x_trajec_optimal(3,:)); axis equal; hold on;
 plot3(x_waypoint(1), x_waypoint(2), x_waypoint(3), 'o', 'MarkerSize', 6,'MarkerFaceColor', 'b', 'MarkerEdgeColor', 'b');
+plot3(x_obstacle(1), x_obstacle(2), x_obstacle(3), 'o', 'MarkerSize', 12,'MarkerFaceColor', 'r', 'MarkerEdgeColor', 'r');
 plot3(x_trajec_optimal(1,1), x_trajec_optimal(1,1), x_trajec_optimal(1,1), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g');
 plot3(x_final(1), x_final(2), x_final(3), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 if(cost_param.obstacle_enable)
