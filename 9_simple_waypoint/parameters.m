@@ -7,7 +7,7 @@ n = 3*6;
 m = 4;
 x_final = zeros(n,1);
 x_waypoint = zeros(n,1);
-k_waypoint = N/4;
+k_waypoint = N/2;
 
 %System
 initialNumber = 1;
@@ -45,12 +45,13 @@ end
 % x_initial(16,1) = 0;%multirotor attitude
 % x_initial(17,1) = 0;
 % x_initial(18,1) = 0;
-x_final(1,1) = 3;
+x_final(1,1) = 4;
 x_final(2,1) = 0;
 x_final(3,1) = 0;
-x_waypoint(1,1) = 0.5;
-x_waypoint(2,1) = -0.5;
+x_waypoint(1,1) = 2;
+x_waypoint(2,1) = 3;
 x_waypoint(3,1) = 0;
+d_1 = 2;
 
 G = 9.81;
 MASS_Q = 2.45;
@@ -95,26 +96,6 @@ if cost_param.obstacle_enable
     cost_param.obstacle_consider = 'xy';
 %     cost_param.obstacle_consider = 'xyz';
 end
-
-%SLQ
-%Tunable
-SLQ_param.warmstart_original = false; %use one-step-shifted input trajectory
-SLQ_param.warmstart_modified = false; %use the input which follows the previous state trajectory
-SLQ_param.maxIter = 10;
-SLQ_param.maxLineSearch = 10;
-SLQ_param.convergenceTol = 0.01;
-%Static
-SLQ_param.n = n;
-SLQ_param.m = m;
-SLQ_param.N = N;
-SLQ_param.x_f = x_final;
-SLQ_param.dynamics = dynamics;
-SLQ_param.dynamicsGradient = dynamicsGradient;
-SLQ_param.dynamics_param = dynamics_param;
-SLQ_param.cost = cost;
-SLQ_param.costOne = costOne;
-SLQ_param.costGradient = costGradient;
-SLQ_param.cost_param = cost_param;
 
 %QP
 A = diag(ones(1,18));
