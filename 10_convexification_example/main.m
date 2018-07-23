@@ -183,10 +183,26 @@ ylabel('y(m)');
 zlabel('z(m)');
 
 %% Sequential Convexification
-% while(1)    
+for iter=1:10    
     %Convexification
-    
+    n_obstacle = 2;
+    z = zeros(n*N + m*(N-1),n_obstacle);
+    r = [r1 r2];
+    pc = [pc_1 pc_2];
+    for i=1:n_obstacle
+        cvx_begin
+        variable z_temp(n*N + m*(N-1))
+        
+        minimize( norm(y_initial - z_temp) )
+        subject to
+            for j=1:N
+                norm(z_temp(((j-1)*n+1):((j-1)*n+2)) - pc(:,i)) <= r(i)
+            end
+        cvx_end
+        z(:,i) = z_temp;
+    end
+    %Linearization
     
     %Optimization
     
-% end
+end
