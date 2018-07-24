@@ -306,7 +306,7 @@ for iter=1:maxIter
     
     fprintf('iter: %2d cost_new: %4.2f cost_old: %4.2f c1: %4.2f c2: %4.2f c3: %4.2f c4: %4.2f c5: %4.2f\n',...
         iter, costs(iter+1), costs(iter), constraints1, constraints2, constraints3, constraints4, constraints5);
-    if((constraints1<=0) && (constraints2<=0) && (constraints3<=0) && (constraints4<=0) && (constraints5<=0))
+    if((constraints1<=0.01) && (constraints2<=0.01) && (constraints3<=0.01) && (constraints4<=0.01) && (constraints5<=0.01) && (delta_cost>=-0.1))
         disp('Converged');
         break;
     end
