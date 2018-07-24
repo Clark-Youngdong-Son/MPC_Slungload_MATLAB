@@ -28,6 +28,9 @@ H(2,2) = 1;
 x = zeros(n,N);
 u = zeros(m,N-1);
 y = [reshape(x,n*N,1); reshape(u,m*(N-1),1)];
+n_obstacle = 2;
+r = [r1 r2];
+pc = [pc_1 pc_2];
 
 %% Dynamics (double integrator)
 A = zeros(n,n);
@@ -86,13 +89,6 @@ A_waypoint(:,((n*(k_waypoint-1)+1):(n*k_waypoint))) = [eye(3) zeros(3,3)];
 b_waypoint = zeros(3,1);
 b_waypoint(1:3) = x_waypoint;
 
-%input constraint
-
-
-
-%velocity constraint
-
-
 A_eq = [A_dynamics; A_initial; A_final; A_waypoint];
 b_eq = [b_dynamics; b_initial; b_final; b_waypoint];
 
@@ -117,6 +113,7 @@ cvx_begin
             end
 cvx_end
 
+cost = y_initial.'*H*y_initial;
 x_initial = y_initial(1:n*N);
 x_initial = reshape(x_initial,n,N);
 u_initial = y_initial(n*N+1:n*N + m*(N-1));
@@ -147,12 +144,22 @@ angle = zeros(1,length(t)-1);
 for i=1:length(t)-1
     angle(i) = acos(n_hat.'*u_initial(:,i)/norm(u_initial(:,i)));
 end
-subplot(3,1,1); plot(t(1:end-1),u_norm,'-k'); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
-ylim([-u_max*1.1 u_max*1.1]);
-subplot(3,1,2); plot(t,v_norm,'-k'); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
-ylim([-V_max*1.1 V_max*1.1]);
-subplot(3,1,3); plot(t(1:end-1),rad2deg(angle),'-k'); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
-ylim(rad2deg([0 theta_cone*1.1]));
+distance = zeros(n_obstacle,length(t)-2);
+for i=2:length(t)-1
+    for j=1:n_obstacle
+        distance(j,i-1) = sqrt(sum((x_initial(1:2,i)-pc(:,j)).^2));
+    end
+end
+subplot(5,1,1); plot(t(1:end-1),u_norm,'-k'); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
+ylim([0 u_max*1.1]); ylabel('Input (m/s^2)');
+subplot(5,1,2); plot(t,v_norm,'-k'); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
+ylim([0 V_max*1.1]); ylabel('Velocity (m/s)');
+subplot(5,1,3); plot(t(1:end-1),rad2deg(angle),'-k'); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
+ylim(rad2deg([0 theta_cone*1.1])); xlabel('time(s)'); ylabel('Angle (deg)');
+subplot(5,1,4); plot(t(2:end-1),distance(1,:),'-k'); hold on; plot([t(2) t(end-1)],[r(1) r(1)],'-r');
+ylim([r(1)*0.9 1.1*max(distance(1,:))]); xlabel('time(s)'); ylabel('d_o.1 (m)');
+subplot(5,1,5); plot(t(2:end-1),distance(2,:),'-k'); hold on; plot([t(2) t(end-1)],[r(2) r(2)],'-r');
+ylim([r(2)*0.9 1.1*max(distance(2,:))]); xlabel('time(s)'); ylabel('d_o.2 (m)');
 
 figure(3);
 plot3(x_initial(1,:),x_initial(2,:),x_initial(3,:),'-k'); hold on;
@@ -177,20 +184,20 @@ obstacle2 = surf(X2,Y2,Z2);
 set(obstacle2,'FaceAlpha',0.5,'FaceColor','red','EdgeColor','red','EdgeAlpha',0.3)
 axis equal;
 axis([-8.5 8.5 -5 5 -1 8]);
-view([0 90]);
+view([-30 50]);
 xlabel('x(m)');
 ylabel('y(m)');
 zlabel('z(m)');
 autoArrangeFigures(3,3,1);
 
 %% Sequential Convexification
-for iter=1:20
+maxIter = 10;
+costs = zeros(1,1+maxIter);
+costs(1) = cost;
+for iter=1:maxIter
     %Convexification
-    n_obstacle = 1;
     z = zeros(n*N + m*(N-1),n_obstacle);
     l = zeros(n*N + m*(N-1),n_obstacle);
-    r = [r1 r2];
-    pc = [pc_1 pc_2];
     for i=1:n_obstacle
         cvx_begin
         variable z_temp(n*N + m*(N-1))
@@ -203,7 +210,7 @@ for iter=1:20
         cvx_end
         z(:,i) = z_temp;
         %Linearization
-        for j=1:N-1
+        for j=2:N-1
             delta = z(((j-1)*n+1):((j-1)*n+2),i)-pc(:,i);
             l(((j-1)*n+1):((j-1)*n+2),i) = delta/norm(delta);
         end
@@ -232,12 +239,13 @@ for iter=1:20
             end
             %Linearized constraint
             for i=1:n_obstacle
-                for j=1:N-1
+                for j=2:N-1
                    l(((j-1)*n+1):((j-1)*n+2),i).'*(y(((j-1)*n+1):((j-1)*n+2))-z(((j-1)*n+1):((j-1)*n+2),i))>=0 
                 end
             end
     cvx_end
     
+    costs(iter+1) = y.'*H*y;
     y_initial = y;
     x_initial = y(1:n*N);
     x_initial = reshape(x_initial,n,N);
@@ -269,13 +277,38 @@ for iter=1:20
     for i=1:length(t)-1
         angle(i) = acos(n_hat.'*u_initial(:,i)/norm(u_initial(:,i)));
     end
-    subplot(3,1,1); plot(t(1:end-1),u_norm); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
-    ylim([-u_max*1.1 u_max*1.1]);
-    subplot(3,1,2); plot(t,v_norm); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
-    ylim([-V_max*1.1 V_max*1.1]);
-    subplot(3,1,3); plot(t(1:end-1),rad2deg(angle)); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
-    ylim(rad2deg([0 theta_cone*1.1]));
+    distance = zeros(n_obstacle,length(t)-2);
+    for i=2:length(t)-1
+        for j=1:n_obstacle
+            distance(j,i-1) = sqrt(sum((x_initial(1:2,i)-pc(:,j)).^2));
+        end
+    end
+    subplot(5,1,1); plot(t(1:end-1),u_norm); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
+    ylim([0 u_max*1.1]); ylabel('Input (m/s^2)');
+    subplot(5,1,2); plot(t,v_norm); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
+    ylim([0 V_max*1.1]); ylabel('Velocity (m/s)');
+    subplot(5,1,3); plot(t(1:end-1),rad2deg(angle)); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
+    ylim(rad2deg([0 theta_cone*1.1])); xlabel('time(s)'); ylabel('Angle (deg)');
+    subplot(5,1,4); plot(t(2:end-1),distance(1,:)); hold on; plot([t(2) t(end-1)],[r(1) r(1)],'-r');
+    ylim([r(1)*0.9 1.1*max(distance(1,:))]); xlabel('time(s)'); ylabel('d_o.1 (m)');
+    subplot(5,1,5); plot(t(2:end-1),distance(2,:)); hold on; plot([t(2) t(end-1)],[r(2) r(2)],'-r');
+    ylim([r(2)*0.9 1.1*max(distance(2,:))]); xlabel('time(s)'); ylabel('d_o.2 (m)');
 
     figure(3);
     plot3(x_initial(1,:),x_initial(2,:),x_initial(3,:)); hold on;
+    
+    delta_cost = costs(iter+1) - costs(iter);
+    constraints1 = max(u_norm-u_max);
+    constraints2 = max(v_norm-V_max);
+    constraints3 = rad2deg(max(angle-theta_cone));
+    constraints4 = -min(distance(1,:)-r1);
+    constraints5 = -min(distance(2,:)-r2);
+    
+    fprintf('iter: %2d cost_new: %4.2f cost_old: %4.2f c1: %4.2f c2: %4.2f c3: %4.2f c4: %4.2f c5: %4.2f\n',...
+        iter, costs(iter+1), costs(iter), constraints1, constraints2, constraints3, constraints4, constraints5);
+    if((constraints1<=0) && (constraints2<=0) && (constraints3<=0) && (constraints4<=0) && (constraints5<=0))
+        disp('Converged');
+        break;
+    end
+    drawnow;
 end
