@@ -124,15 +124,15 @@ u_initial = reshape(u_initial,m,N-1);
 
 figure(1);
 t = 0:dt:tf;
-subplot(3,3,1); plot(t, x_initial(1,:)); hold on; plot(t(k_waypoint),x_waypoint(1),'bo','MarkerFaceColor','b');
-subplot(3,3,2); plot(t, x_initial(4,:)); 
-subplot(3,3,3); plot(t(1:end-1), u_initial(1,:));
-subplot(3,3,4); plot(t, x_initial(2,:)); hold on; plot(t(k_waypoint),x_waypoint(2),'bo','MarkerFaceColor','b');
-subplot(3,3,5); plot(t, x_initial(5,:));
-subplot(3,3,6); plot(t(1:end-1), u_initial(2,:)); 
-subplot(3,3,7); plot(t, x_initial(3,:)); hold on; plot(t(k_waypoint),x_waypoint(3),'bo','MarkerFaceColor','b');
-subplot(3,3,8); plot(t, x_initial(6,:));
-subplot(3,3,9); plot(t(1:end-1), u_initial(3,:)); 
+subplot(3,3,1); plot(t, x_initial(1,:),'-k'); hold on; plot(t(k_waypoint),x_waypoint(1),'bo','MarkerFaceColor','b');
+subplot(3,3,2); plot(t, x_initial(4,:),'-k'); hold on;
+subplot(3,3,3); plot(t(1:end-1), u_initial(1,:),'-k'); hold on;
+subplot(3,3,4); plot(t, x_initial(2,:),'-k'); hold on; plot(t(k_waypoint),x_waypoint(2),'bo','MarkerFaceColor','b');
+subplot(3,3,5); plot(t, x_initial(5,:),'-k'); hold on;
+subplot(3,3,6); plot(t(1:end-1), u_initial(2,:),'-k'); hold on;
+subplot(3,3,7); plot(t, x_initial(3,:),'-k'); hold on; plot(t(k_waypoint),x_waypoint(3),'bo','MarkerFaceColor','b');
+subplot(3,3,8); plot(t, x_initial(6,:),'-k'); hold on;
+subplot(3,3,9); plot(t(1:end-1), u_initial(3,:),'-k'); hold on;
 
 figure(2);
 u_norm = zeros(1,length(t)-1);
@@ -147,11 +147,11 @@ angle = zeros(1,length(t)-1);
 for i=1:length(t)-1
     angle(i) = acos(n_hat.'*u_initial(:,i)/norm(u_initial(:,i)));
 end
-subplot(3,1,1); plot(t(1:end-1), u_norm); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
+subplot(3,1,1); plot(t(1:end-1),u_norm,'-k'); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
 ylim([-u_max*1.1 u_max*1.1]);
-subplot(3,1,2); plot(t, v_norm); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
+subplot(3,1,2); plot(t,v_norm,'-k'); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
 ylim([-V_max*1.1 V_max*1.1]);
-subplot(3,1,3); plot(t(1:end-1), rad2deg(angle)); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
+subplot(3,1,3); plot(t(1:end-1),rad2deg(angle),'-k'); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
 ylim(rad2deg([0 theta_cone*1.1]));
 
 figure(3);
@@ -177,16 +177,18 @@ obstacle2 = surf(X2,Y2,Z2);
 set(obstacle2,'FaceAlpha',0.5,'FaceColor','red','EdgeColor','red','EdgeAlpha',0.3)
 axis equal;
 axis([-8.5 8.5 -5 5 -1 8]);
-view([-38 36]);
+view([0 90]);
 xlabel('x(m)');
 ylabel('y(m)');
 zlabel('z(m)');
+autoArrangeFigures(3,3,1);
 
 %% Sequential Convexification
-for iter=1:10    
+for iter=1:20
     %Convexification
-    n_obstacle = 2;
+    n_obstacle = 1;
     z = zeros(n*N + m*(N-1),n_obstacle);
+    l = zeros(n*N + m*(N-1),n_obstacle);
     r = [r1 r2];
     pc = [pc_1 pc_2];
     for i=1:n_obstacle
@@ -200,9 +202,80 @@ for iter=1:10
             end
         cvx_end
         z(:,i) = z_temp;
-    end
-    %Linearization
+        %Linearization
+        for j=1:N-1
+            delta = z(((j-1)*n+1):((j-1)*n+2),i)-pc(:,i);
+            l(((j-1)*n+1):((j-1)*n+2),i) = delta/norm(delta);
+        end
+    end    
     
     %Optimization
+    A_eq = [A_dynamics; A_initial; A_final];
+    b_eq = [b_dynamics; b_initial; b_final];
+    cvx_begin
+    variable y(n*N + m*(N-1))
     
+    minimize( y.'*H*y )
+    subject to
+            A_eq*y==b_eq
+            %Input constraint
+            for i=1:N-1
+                norm(y((n*N+(i-1)*m+1):(n*N+i*m))) <= u_max
+            end
+            %State constraint
+            for i=2:N-1
+                norm(y(((i-1)*n+1+3):(i*n))) <= V_max
+            end
+            %Angle constraint
+            for i=1:N-1
+                n_hat.'*y((n*N+(i-1)*m+1):(n*N+i*m)) >= norm(y((n*N+(i-1)*m+1):(n*N+i*m)))*cos(theta_cone)
+            end
+            %Linearized constraint
+            for i=1:n_obstacle
+                for j=1:N-1
+                   l(((j-1)*n+1):((j-1)*n+2),i).'*(y(((j-1)*n+1):((j-1)*n+2))-z(((j-1)*n+1):((j-1)*n+2),i))>=0 
+                end
+            end
+    cvx_end
+    
+    y_initial = y;
+    x_initial = y(1:n*N);
+    x_initial = reshape(x_initial,n,N);
+    u_initial = y(n*N+1:n*N + m*(N-1));
+    u_initial = reshape(u_initial,m,N-1);
+
+    figure(1);
+    t = 0:dt:tf;
+    subplot(3,3,1); plot(t, x_initial(1,:)); hold on; plot(t(k_waypoint),x_waypoint(1),'bo','MarkerFaceColor','b');
+    subplot(3,3,2); plot(t, x_initial(4,:)); hold on;
+    subplot(3,3,3); plot(t(1:end-1), u_initial(1,:)); hold on;
+    subplot(3,3,4); plot(t, x_initial(2,:)); hold on; plot(t(k_waypoint),x_waypoint(2),'bo','MarkerFaceColor','b');
+    subplot(3,3,5); plot(t, x_initial(5,:)); hold on;
+    subplot(3,3,6); plot(t(1:end-1), u_initial(2,:)); hold on;
+    subplot(3,3,7); plot(t, x_initial(3,:)); hold on; plot(t(k_waypoint),x_waypoint(3),'bo','MarkerFaceColor','b');
+    subplot(3,3,8); plot(t, x_initial(6,:)); hold on;
+    subplot(3,3,9); plot(t(1:end-1), u_initial(3,:)); hold on;
+
+    figure(2);
+    u_norm = zeros(1,length(t)-1);
+    for i=1:length(t)-1
+        u_norm(i) = norm(u_initial(:,i));
+    end
+    v_norm = zeros(1,length(t)-1);
+    for i=1:length(t)
+        v_norm(i) = norm(x_initial(4:6,i));
+    end
+    angle = zeros(1,length(t)-1);
+    for i=1:length(t)-1
+        angle(i) = acos(n_hat.'*u_initial(:,i)/norm(u_initial(:,i)));
+    end
+    subplot(3,1,1); plot(t(1:end-1),u_norm); hold on; plot([t(1) t(end-1)],[u_max u_max],'-r'); plot([t(1) t(end-1)],[-u_max -u_max],'-r');
+    ylim([-u_max*1.1 u_max*1.1]);
+    subplot(3,1,2); plot(t,v_norm); hold on; plot([t(1) t(end)],[V_max V_max],'-r'); plot([t(1) t(end)],[-V_max -V_max],'-r');
+    ylim([-V_max*1.1 V_max*1.1]);
+    subplot(3,1,3); plot(t(1:end-1),rad2deg(angle)); hold on; plot([t(1) t(end-1)],rad2deg([theta_cone theta_cone]),'-r');
+    ylim(rad2deg([0 theta_cone*1.1]));
+
+    figure(3);
+    plot3(x_initial(1,:),x_initial(2,:),x_initial(3,:)); hold on;
 end
