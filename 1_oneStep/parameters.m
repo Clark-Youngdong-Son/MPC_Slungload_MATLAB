@@ -67,7 +67,7 @@ cost_param.dx = 0.000001;
 cost_param.du = 0.000001;
 costOne = @Cost.costOne;
 costGradient = @Cost.costGradient;
-cost_param.obstacle_enable = true;
+cost_param.obstacle_enable = false;
 cost_param.obstacle = zeros(3,1);
 cost_param.obstacle(:,1) = [1.5 0 0].';
 if cost_param.obstacle_enable

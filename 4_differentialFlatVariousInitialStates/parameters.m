@@ -8,7 +8,7 @@ m = 3;
 x_final = zeros(n,1);
 
 %System
-initialNumber = 10;
+initialNumber = 2;
 x_trajec_optimal = zeros(n,N+1,initialNumber);
 u_trajec_optimal = zeros(m,N, initialNumber);
 cost_new = zeros(initialNumber,1);
@@ -18,12 +18,14 @@ obstacleDistance = zeros(N+1, initialNumber);
 x_initial = zeros(n,initialNumber);
 for i=1:initialNumber
 %     x_initial(1:6,i) = randn(6,1)*1;
-%     x_initial(7:9,i) = randn(3,1)*2; %attitude & cable together
+%     x_initial(7:9,i) = randn(3,1)*1; %attitude & cable together
 %     x_initial(10:12,i) = randn(3,1)*1; %attitude rate & cable rate
-    x_initial(13:15,i) = randn(3,1)*5; %quadrotor attitude
+%     x_initial(13:15,i) = randn(3,1)*5; %quadrotor attitude
 %     x_initial(16:18,i) = randn(3,1)*10; %quadrotor attitude rate
 %     x_initial(10:18,i) = rand(9,1)*2;
 end
+    x_initial(7:9,1) = randn(3,1)*1; %attitude & cable together
+    x_initial(7:9,2) = x_initial(7:9,2)*0.5; %attitude & cable together
 % x_initial(1,1) = 0;
 % x_initial(1,1) = 0;
 % x_initial(4,1) = 0;

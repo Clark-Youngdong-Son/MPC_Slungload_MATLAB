@@ -9,7 +9,7 @@ x = zeros(n,N+1);
 x_final = zeros(n,1);
 
 %System
-initialNumber = 10;
+initialNumber = 1;
 x_trajec_optimal2 = zeros(n,N+1,initialNumber);
 u_trajec_optimal = zeros(m,N, initialNumber);
 cost_new = zeros(initialNumber,1);

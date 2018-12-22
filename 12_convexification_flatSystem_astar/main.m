@@ -2,21 +2,33 @@ clear all; close all;
 %% Simulation parameters
 n = 18;
 m = 3;
-N = 60;
+N = 120;
 p0 = [-4 0.3 0].';
 v0 = [0 0 0].';
 tf = 10;
 pf = [4 0.3 0].';
 vf = [0 0 0].';
 
-pc_1 = [-2.0 -0.6].';
-pc_2 = [1.0 0.6].';
-pc_3 = [3.0 0].';
-pc_4 = [-2.5 0.6].';
-r1 = 0.5;
-r2 = 0.9;
-r3 = 0.3;
-r4 = 0.3;
+pc_1 = [1.3 -0.3].';
+pc_2 = [0.5 0.6].';
+pc_3 = [1.8 -0.5].';
+pc_4 = [-2.0 -0.4].';
+pc_5 = [-1.7 0.5].';
+pc_6 = [-0.5 0.1].';
+pc_7 = [-1.5 -0.4].';
+pc_8 = [0.3 0.4].';
+pc_9 = [0.5 -0.3].';
+pc_10 = [1 0.3].';
+r1 = 0.2;
+r2 = 0.2;
+r3 = 0.2;
+r4 = 0.2;
+r5 = 0.2;
+r6 = 0.2;
+r7 = 0.2;
+r8 = 0.2;
+r9 = 0.2;
+r10 = 0.2;
 
 dt = tf/(N-1);
 t = 0:dt:tf;
@@ -24,9 +36,9 @@ t = 0:dt:tf;
 x = zeros(n,N);
 u = zeros(m,N-1);
 y = [reshape(x,n*N,1); reshape(u,m*(N-1),1)];
-n_obstacle = 4;
-r = [r1 r2 r3 r4];
-pc = [pc_1 pc_2 pc_3 pc_4];
+n_obstacle = 10;
+r = [r1 r2 r3 r4 r5 r6 r7 r8 r9 r10];
+pc = [pc_1 pc_2 pc_3 pc_4 pc_5 pc_6 pc_7 pc_8 pc_9 pc_10];
 
 %% Dynamics (flat system)
 A = diag(ones(1,n));
@@ -212,7 +224,7 @@ set(gca,'Color',[1 1 1]);
 autoArrangeFigures(3,3,1);
 
 %% Sequential Convexification
-maxIter = 10;
+maxIter = 1;
 costs = zeros(1,1+maxIter);
 costs(1) = 0;
 z_temp = zeros(n*N + m*(N-1),1);
@@ -252,13 +264,12 @@ for iter=1:maxIter
     A_eq = [A_dynamics; A_initial; A_final];
     b_eq = [b_dynamics; b_initial; b_final];
     cvx_begin
-    
     variable y(n*N + m*(N-1))
     
     minimize( y.'*H*y )
     subject to
             A_eq*y==b_eq
-            %Linearized constraint
+            %Linearized constraint (obstacle)
             for i=1:n_obstacle
                 for j=2:N-1
                    l(((j-1)*n+1):((j-1)*n+2),i).'*(y(((j-1)*n+1):((j-1)*n+2))-z(((j-1)*n+1):((j-1)*n+2),i))>=0 
